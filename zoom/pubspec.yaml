@@ -34,6 +34,8 @@ flutter:
         pluginClass: ZoomPlugin
       ios:
         pluginClass: ZoomPlugin
+      windows:
+        pluginClass: ZoomPlugin
       web:
          default_package: zoom_web
 
