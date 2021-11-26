@@ -11,9 +11,15 @@
 #include <flutter/standard_method_codec.h>
 
 #include "./zoom_sdk/h/zoom_sdk.h"
+#include "./zoom_sdk/h/zoom_sdk_ext.h"
+#include "./zoom_sdk/h/meeting_service_interface.h"
+#include "./zoom_sdk/h/auth_service_interface.h"
+
 #include <map>
 #include <memory>
 #include <sstream>
+#include <iostream>
+#include <string>
 
 namespace
 {
@@ -22,25 +28,33 @@ namespace
   {
   public:
     static void RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar);
+    ZOOM_SDK_NAMESPACE::IMeetingService *_meetingService;
+    ZOOM_SDK_NAMESPACE::IMeetingService *getMeetingService();
 
     ZoomPlugin();
 
     virtual ~ZoomPlugin();
+    void ZoomPlugin::joinMeeting(const flutter::MethodCall<flutter::EncodableValue> &method_call,
+                                 std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
 
   private:
     // Called when a method is called on this plugin's channel from Dart.
     void HandleMethodCall(
         const flutter::MethodCall<flutter::EncodableValue> &method_call,
         std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
+    void AuthorizeSDK(const std::wstring domain, const std::wstring jwt_token);
+    void init(const flutter::MethodCall<flutter::EncodableValue> &method_call,
+              std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
   };
 
   // static
   void ZoomPlugin::RegisterWithRegistrar(
       flutter::PluginRegistrarWindows *registrar)
   {
+    printf("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\r\n\n\r");
     auto channel =
         std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
-            registrar->messenger(), "zoom",
+            registrar->messenger(), "plugins.webcare/zoom_channel",
             &flutter::StandardMethodCodec::GetInstance());
 
     auto plugin = std::make_unique<ZoomPlugin>();
@@ -52,52 +66,186 @@ namespace
         });
 
     registrar->AddPlugin(std::move(plugin));
+    std::cout << "YYYYYYYYYYYYYYYYYYY messenger:" << registrar->messenger() << "\n";
   }
 
   ZoomPlugin::ZoomPlugin() {}
 
   ZoomPlugin::~ZoomPlugin() {}
 
-  void createMeetingService()
+  ZOOM_SDK_NAMESPACE::IMeetingService *ZoomPlugin::getMeetingService()
   {
-    // Create IMeetingService object to perform meeting actions
-    ZOOM_SDK_NAMESPACE::IMeetingService *meetingService;
-    ZOOM_SDK_NAMESPACE::SDKError meetingServiceInitReturnVal = ZOOM_SDK_NAMESPACE::CreateMeetingService(&meetingService);
-    if (meetingServiceInitReturnVal == ZOOM_SDK_NAMESPACE::SDKError::SDKERR_SUCCESS)
+    if (this->_meetingService == nullptr)
     {
-      // MeetingService was created successfully, it is recommended to store this value for use across the application
-        }
+
+      ZOOM_SDK_NAMESPACE::IMeetingService *meetingService;
+      ZOOM_SDK_NAMESPACE::SDKError meetingServiceInitReturnVal = ZOOM_SDK_NAMESPACE::CreateMeetingService(&meetingService);
+      if (meetingServiceInitReturnVal == ZOOM_SDK_NAMESPACE::SDKError::SDKERR_SUCCESS)
+      {
+        // MeetingService was created successfully, it is recommended to store this value for use across the application
+        this->_meetingService = meetingService;
+      }
+    }
+    return this->_meetingService;
   }
-  void joinMeetingForEndUser()
+
+  std::wstring toString(std::string str)
   {
-    // Join meeting for end user with JoinParam object
-    //ZOOM_SDK_NAMESPACE::JoinParam joinMeetingParam;
-    // Provide meeting credentials for end user using JoinParam4NormalUser
-    // ZOOM_SDK_NAMESPACE::JoinParam4NormalUser joinMeetingForNormalUserLoginParam;
+    return std::wstring(str.begin(), str.end());
+  }
 
-    // joinMeetingParam.userType = ZOOM_SDK_NAMESPACE::SDK_UT_NORMALUSER;
+  // https://marketplace.zoom.us/docs/sdk/native-sdks/windows/mastering-sdk/windows-sdk-functions
+  // void yourAuthServiceEventListener::onAuthenticationReturn(ZOOM_SDK_NAMESPACE::AuthResult ret) {
+  //   if (ret == ZOOM_SDK_NAMESPACE::SDKError::AUTHRET_JWTTOKENWRONG)
+  //   {
+  //     // SDK Auth call failed because the JWT token is invalid.
+  //   } else if (ret == ZOOM_SDK_NAMESPACE::SDKError::SDKERR_SUCCESS)
+  //   {
+  //     // SDK Authenticated successfully
+  //   }
+  // }
 
-    // joinMeetingForNormalUserLoginParam.meetingNumber = 1234567890;
-    // joinMeetingForNormalUserLoginParam.psw = L"Meeting password";
-    // joinMeetingForNormalUserLoginParam.userName = L"Display name for user";
+  void ZoomPlugin::AuthorizeSDK(std::wstring domain, std::wstring jwt_token)
+  {
+    std::cout << "authorizing sdk " << domain.c_str() << " " << jwt_token.c_str() << "\n";
+    // Initialize SDK with InitParam object
+    ZOOM_SDK_NAMESPACE::InitParam initParam;
+    ZOOM_SDK_NAMESPACE::SDKError initReturnVal(ZOOM_SDK_NAMESPACE::SDKERR_UNINITIALIZE);
 
-    // joinMeetingParam.param.normaluserJoin = joinMeetingForNormalUserLoginParam;
+    // Set web domain to zoom.us
+    initParam.strWebDomain = domain.c_str();
+    initReturnVal = ZOOM_SDK_NAMESPACE::InitSDK(initParam);
 
-    // ZOOM_SDK_NAMESPACE::SDKError joinMeetingCallReturnValue(ZOOM_SDK_NAMESPACE::SDKERR_UNKNOWN);
-    // joinMeetingCallReturnValue = yourMeetingServiceInstance->Join(joinMeetingParam);
-    // if (joinMeetingCallReturnValue == ZOOM_SDK_NAMESPACE::SDKError::SDKERR_SUCCESS)
-    // {
-    //   // Join meeting call succeeded, listen for join meeting result using the onMeetingStatusChanged callback
-    // }
+    // Check if InitSDK call succeeded
+    if (initReturnVal == ZOOM_SDK_NAMESPACE::SDKError::SDKERR_SUCCESS)
+    {
+      // Create IAuthService object to perform Auth actions
+      ZOOM_SDK_NAMESPACE::IAuthService *authService;
+      ZOOM_SDK_NAMESPACE::SDKError authServiceInitReturnVal = ZOOM_SDK_NAMESPACE::CreateAuthService(&authService);
+
+      if (authServiceInitReturnVal == ZOOM_SDK_NAMESPACE::SDKError::SDKERR_SUCCESS)
+      {
+        // Create IAuthServiceEvent object to listen for Auth events from SDK
+        // ZOOM_SDK_NAMESPACE::IAuthServiceEvent *authListener;
+        // Auth SDK with AuthContext object
+        ZOOM_SDK_NAMESPACE::AuthContext authContext;
+        ZOOM_SDK_NAMESPACE::SDKError authCallReturnValue(ZOOM_SDK_NAMESPACE::SDKERR_UNAUTHENTICATION);
+
+        // Call SetEvent to assign your IAuthServiceEvent listener
+        // TODO: handle errors
+        // yourAuthServiceEventListener = new YourAuthServiceEventListener();
+        // authListener = yourAuthServiceEventListener;
+        // authService->SetEvent(authListener);
+
+        // Provide your JWT to the AuthContext object
+        authContext.jwt_token = jwt_token.c_str();
+
+        authCallReturnValue = authService->SDKAuth(authContext);
+        if (authCallReturnValue == ZOOM_SDK_NAMESPACE::SDKError::SDKERR_SUCCESS)
+        {
+          // SDK Auth in progress
+        }
+      }
+    }
+  }
+
+  std::wstring getString(const flutter::MethodCall<flutter::EncodableValue> &method_call, std::string arg)
+  {
+    const auto *arguments = std::get_if<flutter::EncodableMap>(method_call.arguments());
+    if (arguments)
+    {
+      std::wstring result = L"";
+      auto result_it = arguments->find(flutter::EncodableValue(arg));
+      if (result_it != arguments->end())
+      {
+        return toString(std::get<std::string>(result_it->second));
+      }
+    }
+    return nullptr;
+  }
+  void ZoomPlugin::joinMeeting(const flutter::MethodCall<flutter::EncodableValue> &method_call,
+                               std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result)
+  {
+    const auto *arguments = std::get_if<flutter::EncodableMap>(method_call.arguments());
+    if (arguments)
+    {
+      auto userId = getString(method_call, "userId");
+      auto meetingId = getString(method_call, "meetingId");
+      auto meetingPassword = getString(method_call, "meetingPassword");
+      auto disableDialIn = getString(method_call, "disableDialIn");
+      auto disableDrive = getString(method_call, "disableDrive");
+      auto disableInvite = getString(method_call, "disableInvite");
+      auto disableShare = getString(method_call, "disableShare");
+      auto noDisconnectAudio = getString(method_call, "noDisconnectAudio");
+      auto noAudio = getString(method_call, "noAudio");
+
+      // Join meeting for end user with JoinParam object
+      ZOOM_SDK_NAMESPACE::JoinParam joinMeetingParam;
+      // Provide meeting credentials for end user using JoinParam4NormalUser
+      ZOOM_SDK_NAMESPACE::JoinParam4NormalUser joinMeetingForNormalUserLoginParam;
+
+      joinMeetingParam.userType = ZOOM_SDK_NAMESPACE::SDK_UT_NORMALUSER;
+
+      joinMeetingForNormalUserLoginParam.meetingNumber = 1234567890;
+      joinMeetingForNormalUserLoginParam.psw = L"Meeting password";
+      joinMeetingForNormalUserLoginParam.userName = L"Display name for user";
+
+      joinMeetingParam.param.normaluserJoin = joinMeetingForNormalUserLoginParam;
+
+      ZOOM_SDK_NAMESPACE::SDKError joinMeetingCallReturnValue(ZOOM_SDK_NAMESPACE::SDKERR_UNKNOWN);
+      joinMeetingCallReturnValue = this->getMeetingService()->Join(joinMeetingParam);
+      if (joinMeetingCallReturnValue == ZOOM_SDK_NAMESPACE::SDKError::SDKERR_SUCCESS)
+      {
+        // Join meeting call succeeded, listen for join meeting result using the onMeetingStatusChanged callback
+      }
+
+      result->Success();
+    }
+    else
+    {
+      result->Error("Bad arguments", "invalid arguments for flutter init");
+    }
+  }
+
+  void ZoomPlugin::init(const flutter::MethodCall<flutter::EncodableValue> &method_call,
+                        std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result)
+  {
+    std::wstring domain = L"";
+    std::wstring jwt_token = L"";
+    const auto *arguments = std::get_if<flutter::EncodableMap>(method_call.arguments());
+    if (arguments)
+    {
+      auto domain_it = arguments->find(flutter::EncodableValue("domain"));
+      if (domain_it != arguments->end())
+      {
+        domain = toString(std::get<std::string>(domain_it->second));
+      }
+      auto token_it = arguments->find(flutter::EncodableValue("jwtToken"));
+      if (token_it != arguments->end())
+      {
+        jwt_token = toString(std::get<std::string>(token_it->second));
+      }
+      this->AuthorizeSDK(domain, jwt_token); // TODO: wait for result from Zoom SDK if it is valid
+      result->Success();
+    }
+    else
+    {
+      result->Error("Bad arguments", "invalid arguments for flutter init");
+    }
   }
 
   void ZoomPlugin::HandleMethodCall(
       const flutter::MethodCall<flutter::EncodableValue> &method_call,
       std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result)
   {
-    if (method_call.method_name().compare("joinMeeting") == 0)
+    std::cout << "Got message on channel " << method_call.method_name() << "\n";
+    if (method_call.method_name().compare("join") == 0)
     {
-      joinMeetingForEndUser();
+      this->joinMeeting(method_call, std::move(result));
+    }
+    else if (method_call.method_name().compare("init") == 0)
+    {
+      this->init(method_call, std::move(result));
     }
     else if (method_call.method_name().compare("getPlatformVersion") == 0)
     {
