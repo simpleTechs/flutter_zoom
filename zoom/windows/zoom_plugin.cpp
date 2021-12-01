@@ -13,6 +13,7 @@
 #include "./zoom_sdk/h/zoom_sdk.h"
 #include "./zoom_sdk/h/zoom_sdk_ext.h"
 #include "./zoom_sdk/h/meeting_service_interface.h"
+// #include "./zoom_sdk/h/meeting_service_components/meeting_ui_ctrl_interface.h"
 #include "./zoom_sdk/h/auth_service_interface.h"
 
 #include <map>
@@ -229,11 +230,23 @@ namespace
       joinParams.isAudioOff = noAudio == L"true";
       joinParams.isDirectShareDesktop = false; // == "true";
 
+      joinParams.vanityID = NULL;
+      joinParams.hDirectShareAppWnd = NULL;
+      joinParams.customer_key = NULL;
+      joinParams.webinarToken = NULL;
+      joinParams.isVideoOff = false;
+      joinParams.isAudioOff = false;
+      joinParams.isDirectShareDesktop = false;
+
       joinMeetingParam.userType = ZOOM_SDK_NAMESPACE::SDK_UT_NORMALUSER;
       joinMeetingParam.param.normaluserJoin = joinParams;
 
       ZOOM_SDK_NAMESPACE::SDKError joinMeetingCallReturnValue(ZOOM_SDK_NAMESPACE::SDKERR_UNKNOWN);
       auto meetingService = this->getMeetingService();
+
+      // TODO: support more sharing options
+      // meetingService->GetUIController()->ShowSharingToolbar(!disableShare);
+
       joinMeetingCallReturnValue = meetingService->Join(joinMeetingParam);
       if (joinMeetingCallReturnValue == ZOOM_SDK_NAMESPACE::SDKError::SDKERR_SUCCESS)
       {
