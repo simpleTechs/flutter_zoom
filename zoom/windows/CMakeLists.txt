@@ -33,3 +33,4 @@ set(${PROJECT_NAME}_bundled_libraries
   # FIXME: add c++ redistributables
   PARENT_SCOPE
 )
+#set(CMAKE_BUILD_TYPE Debug) # FIXME just for debugging
