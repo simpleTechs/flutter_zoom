@@ -124,6 +124,20 @@ if (kIsWeb) {
 }
 ```
 
+### Windows
+This fork contains source code for the windows version. However we do not redistribute the Zoom SDK. 
+In order to use the Windows version, please download the latest version of the Zoom Windows SDK (C++, not C#). and extract it the the directory ./windows/zoom_sdk.
+
+After that you can adapt your pubspec.yml to load this package from file system instead of pub.dev.
+
+Assuming you clone this repo next your project, it will look like this:
+```
+  zoom:
+    path: '../flutter_zoom/zoom'
+```
+
+You can also use [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
+
 ## example
 - Auth zoom with "SDK App JWT Token"
   - Create SDK App JWT Token
