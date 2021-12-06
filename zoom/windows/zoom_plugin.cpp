@@ -210,7 +210,9 @@ namespace
       void onAuthenticationReturn(ZOOM_SDK_NAMESPACE::AuthResult result)
       {
         // flutter::EncodableValue res = flutter::EncodableValue(result); dart expects List<dynamic>
-        this->init_result->Success();
+        auto out = flutter::EncodableList();
+        out.push_back(flutter::EncodableValue(result));
+        this->init_result->Success(out);
         auto service = getMeetingService();
         service->SetEvent(streamHandler); // TODO: pass reference to stream handler
       }
@@ -387,6 +389,7 @@ namespace
       auto meetingPassword = getString(method_call, "meetingPassword");
       auto disableDialIn = getString(method_call, "disableDialIn");
       auto disableDrive = getString(method_call, "disableDrive");
+      // TODO: not yet supported
       auto disableInvite = getString(method_call, "disableInvite");
       auto disableShare = getString(method_call, "disableShare");
       auto noDisconnectAudio = getString(method_call, "noDisconnectAudio");
@@ -422,7 +425,6 @@ namespace
 
       // TODO: support more sharing options
       auto uiController = meetingService->GetUIController();
-
       if (uiController)
       {
         uiController->ShowSharingToolbar(disableShare == L"true");
