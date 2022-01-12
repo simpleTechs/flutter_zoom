@@ -5,6 +5,7 @@ import ZoomSDK
 public class SwiftZoomPlugin: NSObject, FlutterPlugin,FlutterStreamHandler, ZoomSDKMeetingServiceDelegate {
   var authenticationDelegate: AuthenticationDelegate
   var eventSink: FlutterEventSink?
+    var sharedSDK: ZoomSDK?
    
   public static func register(with registrar: FlutterPluginRegistrar) {
     let messenger = registrar.messenger
@@ -59,12 +60,15 @@ public class SwiftZoomPlugin: NSObject, FlutterPlugin,FlutterStreamHandler, Zoom
     
     public func initZoom(call: FlutterMethodCall, result: @escaping FlutterResult)  {
         let arguments = call.arguments as! Dictionary<String, String>
+//        print("Init'ing Zoom with domain: \(String(describing: arguments["domain"])) token: \(String(describing: arguments["jwtToken"]))")
         
         let params = ZoomSDKInitParams()
+        params.teamIdentifier = nil
+        params.needCustomizedUI = false
         
-        let sharedSDK = ZoomSDK.shared()
-        sharedSDK?.zoomDomain = arguments["domain"]!
+        sharedSDK = ZoomSDK.shared()
         SwiftZoomPlugin.printStatus(sharedSDK?.initSDK(with: params))
+        sharedSDK?.zoomDomain = arguments["domain"]!
         
         let auth = ZoomSDKAuthContext()
         if let jwtToken = arguments["jwtToken"] {
@@ -96,14 +100,6 @@ public class SwiftZoomPlugin: NSObject, FlutterPlugin,FlutterStreamHandler, Zoom
         if meetingService != nil {
             
             let arguments = call.arguments as! Dictionary<String, String?>
-            /*
-            meetingSettings?.disableDriveMode(parseBoolean(data: arguments["disableDrive"]!, defaultValue: false))
-            meetingSettings?.disableCall(in: parseBoolean(data: arguments["disableDialIn"]!, defaultValue: false))
-            meetingSettings?.setAutoConnectInternetAudio(parseBoolean(data: arguments["noDisconnectAudio"]!, defaultValue: false))
-            meetingSettings?.setMuteAudioWhenJoinMeeting(parseBoolean(data: arguments["noAudio"]!, defaultValue: false))
-            meetingSettings?.meetingShareHidden = parseBoolean(data: arguments["disableShare"]!, defaultValue: false)
-            meetingSettings?.meetingInviteHidden = parseBoolean(data: arguments["disableDrive"]!, defaultValue: false)
-             */
             let joinMeetingParameters = ZoomSDKJoinMeetingElements()
             joinMeetingParameters.displayName = arguments["userId"]!!
             joinMeetingParameters.meetingNumber = Int64(arguments["meetingId"]!!)!
@@ -285,7 +281,7 @@ public class AuthenticationDelegate: NSObject, ZoomSDKAuthDelegate {
     }
     
     public func onZoomSDKAuthReturn(_ returnValue: ZoomSDKAuthError) {
-        print("onZoomSDKAuthReturn")
+//        print("onZoomSDKAuthReturn: \(String(describing: returnValue))")
         
         if returnValue == ZoomSDKAuthError_Success {
             self.result?([0, 0])

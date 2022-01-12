@@ -17,8 +17,10 @@ A new flutter plugin project.
   s.dependency 'FlutterMacOS'
 
   s.platform = :osx, '10.11'
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
   s.swift_version = '5.0'
+
+  # Flutter.framework does not contain a i386 slice.
+  s.pod_target_xcconfig = { 'OTHER_LDFLAGS' => '-framework ZoomKit -framework ZoomMeetingBridge -framework ZoomSDK -framework ZoomSDKChatUI -framework ZoomSDKVideoUI -framework ZoomUnit -framework asproxy -framework cmmlib -framework curl64 -framework nydus -framework protobuf -framework tp -framework util -framework viper -framework vtAdapter -framework xmpp_framework', 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
 
   s.preserve_paths = 'zoom_sdk/Universal-Intel+M1/ZoomSDK'
   s.vendored_libraries = 'zoom_sdk/Universal-Intel+M1/ZoomSDK/libcrypto.dylib', 'zoom_sdk/Universal-Intel+M1/ZoomSDK/libjson.dylib', 'zoom_sdk/Universal-Intel+M1/ZoomSDK/libminizip.dylib', 'zoom_sdk/Universal-Intel+M1/ZoomSDK/libssl.dylib'
